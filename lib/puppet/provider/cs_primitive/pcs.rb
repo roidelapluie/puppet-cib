@@ -103,7 +103,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Coro
   # to "stop" the primitive before we are able to remove it.
   def destroy
     debug('Stopping primitive before removing it')
-    pcs('resource', 'stop', @resource[:name])
+    pcs('resource', 'disable', @resource[:name])
     debug('Revmoving primitive')
     pcs('resource', 'delete', @resource[:name])
     @property_hash.clear
@@ -123,7 +123,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Coro
       has_resource = false
     end
 
-    pcs('cluster', 'push', 'cib', tmpfile.path.to_s)
+    pcs('cluster', 'cib-push', tmpfile.path.to_s)
     tmpfile.close
     tmpfile.unlink
   end
@@ -184,7 +184,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Coro
       @property_hash[:promotable] = should
     when :false
       @property_hash[:promotable] = should
-      pcs('resource', 'stop', "ms_#{@resource[:name]}")
+      pcs('resource', 'disable', "ms_#{@resource[:name]}")
       pcs('resource', 'delete', "ms_#{@resource[:name]}")
     end
   end
@@ -248,13 +248,13 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Coro
         has_resource = false
       end
 
-      if has_resource
-        debug('Updating primitive definition')
-        pcs('-f', tmpfile.path.to_s, 'resource', 'update', updated.split(/\s+/))
-      else
-        debug('Creating new primitive')
-        pcs('-f', tmpfile.path.to_s, 'resource', 'create', updated.split(/\s+/))
-      end
+      ##if has_resource
+      #  debug('Updating primitive definition')
+      #  pcs('-f', tmpfile.path.to_s, 'resource', 'update', @property_hash[:name])
+      #else
+      #  debug('Creating new primitive')
+      #  pcs('-f', tmpfile.path.to_s, 'resource', 'create', @property_hash[:name])
+      #end
 
       if @property_hash[:promotable] == :true
         master = ''
@@ -268,7 +268,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Coro
         pcs('-f', tmpfile.path.to_s, master.split(/\s+/))
       end
 
-      pcs('cluster', 'push', 'cib', tmpfile.path.to_s)
+      pcs('cluster', 'cib-push', tmpfile.path.to_s)
 
       tmpfile.close
       tmpfile.unlink
