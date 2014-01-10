@@ -108,8 +108,6 @@ Puppet::Type.type(:cs_primitive).provide(:crm, :parent => Puppet::Provider::Crms
   # Unlike create we actually immediately delete the item.  Corosync forces us
   # to "stop" the primitive before we are able to remove it.
   def destroy
-    debug('Stopping primitive before removing it')
-    crm('resource', 'stop', @resource[:name])
     debug('Revmoving primitive')
     pcs('resource', 'delete', @resource[:name])
     @property_hash.clear
@@ -171,7 +169,6 @@ Puppet::Type.type(:cs_primitive).provide(:crm, :parent => Puppet::Provider::Crms
       @property_hash[:promotable] = should
     when :false
       @property_hash[:promotable] = should
-      crm('resource', 'stop', "ms_#{@resource[:name]}")
       pcs('resource', 'delete', "ms_#{@resource[:name]}")
     end
   end

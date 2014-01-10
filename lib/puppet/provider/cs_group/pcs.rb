@@ -60,8 +60,6 @@ Puppet::Type.type(:cs_group).provide(:crm, :parent => Puppet::Provider::Crmsh) d
   # Unlike create we actually immediately delete the item but first, like primitives,
   # we need to stop the group.
   def destroy
-    debug('Stopping group before removing it')
-    crm('resource', 'stop', @resource[:name])
     debug('Revmoving group')
     pcs('resource', 'delete', @resource[:name])
     @property_hash.clear
