@@ -11,7 +11,7 @@ Puppet::Type.type(:cs_primitive).provide(:crm, :parent => Puppet::Provider::Crms
         better model since these values can be almost anything.'
 
   # Path to the crm binary for interacting with the cluster configuration.
-  commands :crm => 'crm'
+  commands :pcs => 'pcs'
 
   # given an XML element containing some <nvpair>s, return a hash. Return an
   # empty hash if `e` is nil.
@@ -71,7 +71,7 @@ Puppet::Type.type(:cs_primitive).provide(:crm, :parent => Puppet::Provider::Crms
 
     instances = []
 
-    cmd = [ command(:crm), 'configure', 'show', 'xml' ]
+    cmd = [ command(:pcs), 'cluster', 'cib' ]
     if Puppet::PUPPETVERSION.to_f < 3.4
       raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
     else
@@ -179,9 +179,9 @@ Puppet::Type.type(:cs_primitive).provide(:crm, :parent => Puppet::Provider::Crms
   # Flush is triggered on anything that has been detected as being
   # modified in the property_hash.  It generates a temporary file with
   # the updates that need to be made.  The temporary file is then used
-  # as stdin for the crm command.  We have to do a bit of munging of our
+  # as stdin for the pcs command.  We have to do a bit of munging of our
   # operations and parameters hash to eventually flatten them into a string
-  # that can be used by the crm command.
+  # that can be used by the pcs command.
   def flush
     unless @property_hash.empty?
       unless @property_hash[:operations].empty?

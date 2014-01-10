@@ -8,7 +8,7 @@ Puppet::Type.type(:cs_order).provide(:crm, :parent => Puppet::Provider::Crmsh) d
         aspects.'
 
   # Path to the crm binary for interacting with the cluster configuration.
-  commands :crm => 'crm'
+  commands :pcs => 'pcs'
 
   def self.instances
 
@@ -16,7 +16,7 @@ Puppet::Type.type(:cs_order).provide(:crm, :parent => Puppet::Provider::Crmsh) d
 
     instances = []
 
-    cmd = [ command(:crm), 'configure', 'show', 'xml' ]
+    cmd = [ command(:pcs), 'cluster', 'cib' ]
     if Puppet::PUPPETVERSION.to_f < 3.4
       raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
     else
@@ -106,7 +106,7 @@ Puppet::Type.type(:cs_order).provide(:crm, :parent => Puppet::Provider::Crmsh) d
   # Flush is triggered on anything that has been detected as being
   # modified in the property_hash.  It generates a temporary file with
   # the updates that need to be made.  The temporary file is then used
-  # as stdin for the crm command.
+  # as stdin for the pcs command.
   def flush
     unless @property_hash.empty?
       updated = 'order '

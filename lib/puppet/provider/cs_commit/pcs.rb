@@ -2,7 +2,7 @@ require 'pathname'
 require Pathname.new(__FILE__).dirname.dirname.expand_path + 'pacemaker'
 
 Puppet::Type.type(:cs_commit).provide(:crm, :parent => Puppet::Provider::Crmsh) do
-  commands :crm => 'crm'
+  commands :pcs => 'pcs'
 
   def self.instances
     block_until_ready
