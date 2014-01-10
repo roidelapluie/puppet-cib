@@ -1,5 +1,5 @@
 require 'pathname' # JJM WORK_AROUND #14073
-require Pathname.new(__FILE__).dirname.dirname.expand_path + 'crmsh'
+require Pathname.new(__FILE__).dirname.dirname.expand_path + 'pacemaker'
 
 Puppet::Type.type(:cs_property).provide(:crm, :parent => Puppet::Provider::Crmsh) do
   desc 'Specific provider for a rather specific type since I currently have no plan to

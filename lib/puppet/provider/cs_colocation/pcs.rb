@@ -1,13 +1,14 @@
 require 'pathname'
-require Pathname.new(__FILE__).dirname.dirname.expand_path + 'crmsh'
+require Pathname.new(__FILE__).dirname.dirname.expand_path + 'pacemaker'
 
-Puppet::Type.type(:cs_order).provide(:crm, :parent => Puppet::Provider::Crmsh) do
+Puppet::Type.type(:cs_colocation).provide(:crm, :parent => Puppet::Provider::Crmsh) do
   desc 'Specific provider for a rather specific type since I currently have no plan to
-        abstract corosync/pacemaker vs. keepalived. This provider will check the state
-        of current primitive start orders on the system; add, delete, or adjust various
+        abstract corosync/pacemaker vs. keepalived.  This provider will check the state
+        of current primitive colocations on the system; add, delete, or adjust various
         aspects.'
 
   # Path to the crm binary for interacting with the cluster configuration.
+  # Decided to just go with relative.
   commands :crm => 'crm'
 
   def self.instances
@@ -25,30 +26,31 @@ Puppet::Type.type(:cs_order).provide(:crm, :parent => Puppet::Provider::Crmsh) d
     end
     doc = REXML::Document.new(raw)
 
-    doc.root.elements['configuration'].elements['constraints'].each_element('rsc_order') do |e|
+    doc.root.elements['configuration'].elements['constraints'].each_element('rsc_colocation') do |e|
       items = e.attributes
 
-      if items['first-action']
-        first = "#{items['first']}:#{items['first-action']}"
+      if items['rsc-role']
+        rsc = "#{items['rsc']}:#{items['rsc-role']}"
       else
-        first = items['first']
+        rsc = items['rsc']
       end
 
-      if items['then-action']
-        second = "#{items['then']}:#{items['then-action']}"
+      if items ['with-rsc-role']
+        with_rsc = "#{items['with-rsc']}:#{items['with-rsc-role']}"
       else
-        second = items['then']
+        with_rsc = items['with-rsc']
       end
 
-      order_instance = {
+      # Sorting the array of primitives because order doesn't matter so someone
+      # switching the order around shouldn't generate an event.
+      colocation_instance = {
         :name       => items['id'],
         :ensure     => :present,
-        :first      => first,
-        :second     => second,
+        :primitives => [rsc, with_rsc].sort,
         :score      => items['score'],
         :provider   => self.name
       }
-      instances << new(order_instance)
+      instances << new(colocation_instance)
     end
     instances
   end
@@ -59,8 +61,7 @@ Puppet::Type.type(:cs_order).provide(:crm, :parent => Puppet::Provider::Crmsh) d
     @property_hash = {
       :name       => @resource[:name],
       :ensure     => :present,
-      :first      => @resource[:first],
-      :second     => @resource[:second],
+      :primitives => @resource[:primitives],
       :score      => @resource[:score],
       :cib        => @resource[:cib],
     }
@@ -68,35 +69,29 @@ Puppet::Type.type(:cs_order).provide(:crm, :parent => Puppet::Provider::Crmsh) d
 
   # Unlike create we actually immediately delete the item.
   def destroy
-    debug('Revmoving order directive')
+    debug('Revmoving colocation')
     crm('configure', 'delete', @resource[:name])
     @property_hash.clear
   end
 
-  # Getters that obtains the first and second primitives and score in our
-  # ordering definintion that have been populated by prefetch or instances
-  # (depends on if your using puppet resource or not).
-  def first
-    @property_hash[:first]
+  # Getter that obtains the primitives array for us that should have
+  # been populated by prefetch or instances (depends on if your using
+  # puppet resource or not).
+  def primitives
+    @property_hash[:primitives]
   end
 
-  def second
-    @property_hash[:second]
-  end
-
+  # Getter that obtains the our score that should have been populated by
+  # prefetch or instances (depends on if your using puppet resource or not).
   def score
     @property_hash[:score]
   end
 
-  # Our setters for the first and second primitives and score.  Setters are
-  # used when the resource already exists so we just update the current value
-  # in the property hash and doing this marks it to be flushed.
-  def first=(should)
-    @property_hash[:first] = should
-  end
-
-  def second=(should)
-    @property_hash[:second] = should
+  # Our setters for the primitives array and score.  Setters are used when the
+  # resource already exists so we just update the current value in the property
+  # hash and doing this marks it to be flushed.
+  def primitives=(should)
+    @property_hash[:primitives] = should.sort
   end
 
   def score=(should)
@@ -109,16 +104,12 @@ Puppet::Type.type(:cs_order).provide(:crm, :parent => Puppet::Provider::Crmsh) d
   # as stdin for the crm command.
   def flush
     unless @property_hash.empty?
-      updated = 'order '
-      updated << "#{@property_hash[:name]} #{@property_hash[:score]}: "
-      updated << "#{@property_hash[:first]} #{@property_hash[:second]}"
+      updated = "colocation "
+      updated << "#{@property_hash[:name]} #{@property_hash[:score]}: #{@property_hash[:primitives].join(' ')}"
       Tempfile.open('puppet_crm_update') do |tmpfile|
-        print "\n"
-        print updated
-        print "\n"
         tmpfile.write(updated)
         tmpfile.flush
-        ENV['CIB_shadow'] = @resource[:cib]
+        ENV["CIB_shadow"] = @resource[:cib]
         crm('configure', 'load', 'update', tmpfile.path.to_s)
       end
     end

@@ -1,15 +1,11 @@
 require 'pathname'
-require Pathname.new(__FILE__).dirname.dirname.expand_path + 'crmsh'
+require Pathname.new(__FILE__).dirname.dirname.expand_path + 'pacemaker'
 
-Puppet::Type.type(:cs_colocation).provide(:crm, :parent => Puppet::Provider::Crmsh) do
-  desc 'Specific provider for a rather specific type since I currently have no plan to
-        abstract corosync/pacemaker vs. keepalived.  This provider will check the state
-        of current primitive colocations on the system; add, delete, or adjust various
-        aspects.'
+Puppet::Type.type(:cs_group).provide(:crm, :parent => Puppet::Provider::Crmsh) do
+  desc 'Provider to add, delete, manipulate primitive groups.'
 
   # Path to the crm binary for interacting with the cluster configuration.
-  # Decided to just go with relative.
-  commands :crm => 'crm'
+  commands :crm => '/usr/sbin/crm'
 
   def self.instances
 
@@ -26,31 +22,26 @@ Puppet::Type.type(:cs_colocation).provide(:crm, :parent => Puppet::Provider::Crm
     end
     doc = REXML::Document.new(raw)
 
-    doc.root.elements['configuration'].elements['constraints'].each_element('rsc_colocation') do |e|
+    REXML::XPath.each(doc, '//group') do |e|
+
       items = e.attributes
+      group = { :name => items['id'].to_sym }
 
-      if items['rsc-role']
-        rsc = "#{items['rsc']}:#{items['rsc-role']}"
-      else
-        rsc = items['rsc']
+      primitives = []
+
+      if ! e.elements['primitive'].nil?
+        e.each_element do |p|
+          primitives << p.attributes['id']
+        end
       end
 
-      if items ['with-rsc-role']
-        with_rsc = "#{items['with-rsc']}:#{items['with-rsc-role']}"
-      else
-        with_rsc = items['with-rsc']
-      end
-
-      # Sorting the array of primitives because order doesn't matter so someone
-      # switching the order around shouldn't generate an event.
-      colocation_instance = {
-        :name       => items['id'],
+      group_instance = {
+        :name       => group[:name],
         :ensure     => :present,
-        :primitives => [rsc, with_rsc].sort,
-        :score      => items['score'],
+        :primitives => primitives,
         :provider   => self.name
       }
-      instances << new(colocation_instance)
+      instances << new(group_instance)
     end
     instances
   end
@@ -61,15 +52,17 @@ Puppet::Type.type(:cs_colocation).provide(:crm, :parent => Puppet::Provider::Crm
     @property_hash = {
       :name       => @resource[:name],
       :ensure     => :present,
-      :primitives => @resource[:primitives],
-      :score      => @resource[:score],
-      :cib        => @resource[:cib],
+      :primitives => @resource[:primitives]
     }
+    @property_hash[:cib] = @resource[:cib] if ! @resource[:cib].nil?
   end
 
-  # Unlike create we actually immediately delete the item.
+  # Unlike create we actually immediately delete the item but first, like primitives,
+  # we need to stop the group.
   def destroy
-    debug('Revmoving colocation')
+    debug('Stopping group before removing it')
+    crm('resource', 'stop', @resource[:name])
+    debug('Revmoving group')
     crm('configure', 'delete', @resource[:name])
     @property_hash.clear
   end
@@ -81,21 +74,11 @@ Puppet::Type.type(:cs_colocation).provide(:crm, :parent => Puppet::Provider::Crm
     @property_hash[:primitives]
   end
 
-  # Getter that obtains the our score that should have been populated by
-  # prefetch or instances (depends on if your using puppet resource or not).
-  def score
-    @property_hash[:score]
-  end
-
   # Our setters for the primitives array and score.  Setters are used when the
   # resource already exists so we just update the current value in the property
   # hash and doing this marks it to be flushed.
   def primitives=(should)
     @property_hash[:primitives] = should.sort
-  end
-
-  def score=(should)
-    @property_hash[:score] = should
   end
 
   # Flush is triggered on anything that has been detected as being
@@ -104,12 +87,12 @@ Puppet::Type.type(:cs_colocation).provide(:crm, :parent => Puppet::Provider::Crm
   # as stdin for the crm command.
   def flush
     unless @property_hash.empty?
-      updated = "colocation "
-      updated << "#{@property_hash[:name]} #{@property_hash[:score]}: #{@property_hash[:primitives].join(' ')}"
+      updated = 'group '
+      updated << "#{@property_hash[:name]} #{@property_hash[:primitives].join(' ')}"
       Tempfile.open('puppet_crm_update') do |tmpfile|
         tmpfile.write(updated)
         tmpfile.flush
-        ENV["CIB_shadow"] = @resource[:cib]
+        ENV['CIB_shadow'] = @resource[:cib]
         crm('configure', 'load', 'update', tmpfile.path.to_s)
       end
     end
