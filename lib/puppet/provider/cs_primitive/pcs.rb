@@ -111,7 +111,7 @@ Puppet::Type.type(:cs_primitive).provide(:crm, :parent => Puppet::Provider::Crms
     debug('Stopping primitive before removing it')
     crm('resource', 'stop', @resource[:name])
     debug('Revmoving primitive')
-    crm('configure', 'delete', @resource[:name])
+    pcs('resource', 'delete', @resource[:name])
     @property_hash.clear
   end
 
@@ -172,7 +172,7 @@ Puppet::Type.type(:cs_primitive).provide(:crm, :parent => Puppet::Provider::Crms
     when :false
       @property_hash[:promotable] = should
       crm('resource', 'stop', "ms_#{@resource[:name]}")
-      crm('configure', 'delete', "ms_#{@resource[:name]}")
+      pcs('resource', 'delete', "ms_#{@resource[:name]}")
     end
   end
 

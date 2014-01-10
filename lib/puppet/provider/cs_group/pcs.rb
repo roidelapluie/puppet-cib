@@ -63,7 +63,7 @@ Puppet::Type.type(:cs_group).provide(:crm, :parent => Puppet::Provider::Crmsh) d
     debug('Stopping group before removing it')
     crm('resource', 'stop', @resource[:name])
     debug('Revmoving group')
-    crm('configure', 'delete', @resource[:name])
+    pcs('resource', 'delete', @resource[:name])
     @property_hash.clear
   end
 

@@ -70,7 +70,7 @@ Puppet::Type.type(:cs_colocation).provide(:crm, :parent => Puppet::Provider::Crm
   # Unlike create we actually immediately delete the item.
   def destroy
     debug('Revmoving colocation')
-    crm('configure', 'delete', @resource[:name])
+    pcs('resource', 'delete', @resource[:name])
     @property_hash.clear
   end
 

@@ -69,7 +69,7 @@ Puppet::Type.type(:cs_order).provide(:crm, :parent => Puppet::Provider::Crmsh) d
   # Unlike create we actually immediately delete the item.
   def destroy
     debug('Revmoving order directive')
-    crm('configure', 'delete', @resource[:name])
+    pcs('resource', 'delete', @resource[:name])
     @property_hash.clear
   end
 
