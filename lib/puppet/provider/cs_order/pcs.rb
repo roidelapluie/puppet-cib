@@ -1,7 +1,7 @@
 require 'pathname'
 require Pathname.new(__FILE__).dirname.dirname.expand_path + 'pacemaker'
 
-Puppet::Type.type(:cs_order).provide(:crm, :parent => Puppet::Provider::Crmsh) do
+Puppet::Type.type(:cs_order).provide(:pcs, :parent => Puppet::Provider::Crmsh) do
   desc 'Specific provider for a rather specific type since I currently have no plan to
         abstract corosync/pacemaker vs. keepalived. This provider will check the state
         of current primitive start orders on the system; add, delete, or adjust various
