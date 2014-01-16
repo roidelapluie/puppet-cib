@@ -1,7 +1,7 @@
 require 'pathname'
 require Pathname.new(__FILE__).dirname.dirname.expand_path + 'pacemaker'
 
-Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Crmsh) do
+Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pacemaker) do
   desc 'Specific provider for a rather specific type since I currently have no
         plan to abstract corosync/pacemaker vs. keepalived.  Primitives in
         Corosync are the thing we desire to monitor; websites, ipaddresses,
@@ -208,29 +208,51 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Crms
           metadatas << "#{k}=#{v} "
         end
       end
-      updated = "primitive "
-      updated << "#{@property_hash[:name]} #{@property_hash[:primitive_class]}:"
-      updated << "#{@property_hash[:provided_by]}:" if @property_hash[:provided_by]
-      updated << "#{@property_hash[:primitive_type]} "
-      updated << "#{operations} " unless operations.nil?
-      updated << "#{parameters} " unless parameters.nil?
-      updated << "#{utilization} " unless utilization.nil?
-      updated << "#{metadatas} " unless metadatas.nil?
+
+      cmd = [ command(:pcs), 'resource', 'delete', "#{@property_hash[:name]}"]
+      if Puppet::PUPPETVERSION.to_f < 3.4
+        raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
+      else
+        raw = Puppet::Util::Execution.execute(cmd)
+        status = raw.exitstatus
+      end
+      ENV['CIB_shadow'] = @resource[:cib]
+      ressource_type = "#{@property_hash[:primitive_class]}:"
+      ressource_type << "#{@property_hash[:provided_by]}:" if @property_hash[:provided_by]
+      ressource_type << "#{@property_hash[:primitive_type]}"
+      cmd = [ command(:pcs), 'resource', 'create', "#{@property_hash[:name]}" ]
+      cmd << [ ressource_type ]
+      cmd << [ "#{operations}" ] unless operations.nil?
+      cmd << [ "#{parameters}" ] unless parameters.nil?
+      cmd << [ "#{utilization}" ] unless utilization.nil?
+      cmd << [ "#{metadatas}" ] unless metadatas.nil?
+      if Puppet::PUPPETVERSION.to_f < 3.4
+        raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
+      else
+        raw = Puppet::Util::Execution.execute(cmd)
+        status = raw.exitstatus
+      end
       if @property_hash[:promotable] == :true
-        updated << "\n"
-        updated << "ms ms_#{@property_hash[:name]} #{@property_hash[:name]} "
+        cmd = [ command(:pcs), 'resource', 'delete', "ms_#{@property_hash[:name]}" ]
+        if Puppet::PUPPETVERSION.to_f < 3.4
+          raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
+        else
+          raw = Puppet::Util::Execution.execute(cmd)
+          status = raw.exitstatus
+        end
+        cmd = [ command(:pcs), "ms", "ms_#{@property_hash[:name]}", "#{@property_hash[:name]}" ]
         unless @property_hash[:ms_metadata].empty?
-          updated << 'meta '
+          cmd << [ 'meta' ]
           @property_hash[:ms_metadata].each_pair do |k,v|
-            updated << "#{k}=#{v} "
+            cmd << [ "#{k}=#{v}" ]
           end
         end
-      end
-      Tempfile.open('puppet_crm_update') do |tmpfile|
-        tmpfile.write(updated)
-        tmpfile.flush
-        ENV['CIB_shadow'] = @resource[:cib]
-        crm('configure', 'load', 'update', tmpfile.path.to_s)
+        if Puppet::PUPPETVERSION.to_f < 3.4
+          raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
+        else
+          raw = Puppet::Util::Execution.execute(cmd)
+          status = raw.exitstatus
+        end
       end
     end
   end

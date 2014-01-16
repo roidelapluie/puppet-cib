@@ -1,7 +1,7 @@
 require 'pathname' # JJM WORK_AROUND #14073
 require Pathname.new(__FILE__).dirname.dirname.expand_path + 'pacemaker'
 
-Puppet::Type.type(:cs_property).provide(:pcs, :parent => Puppet::Provider::Crmsh) do
+Puppet::Type.type(:cs_property).provide(:pcs, :parent => Puppet::Provider::Pacemaker) do
   desc 'Specific provider for a rather specific type since I currently have no plan to
         abstract corosync/pacemaker vs. keepalived. This provider will check the state
         of Corosync cluster configuration properties.'
