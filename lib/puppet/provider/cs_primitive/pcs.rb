@@ -209,6 +209,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
         end
       end
 
+      ENV['CIB_shadow'] = @resource[:cib]
       cmd = [ command(:pcs), 'resource', 'delete', "#{@property_hash[:name]}"]
       if Puppet::PUPPETVERSION.to_f < 3.4
         raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
@@ -216,7 +217,6 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
         raw = Puppet::Util::Execution.execute(cmd)
         status = raw.exitstatus
       end
-      ENV['CIB_shadow'] = @resource[:cib]
       ressource_type = "#{@property_hash[:primitive_class]}:"
       ressource_type << "#{@property_hash[:provided_by]}:" if @property_hash[:provided_by]
       ressource_type << "#{@property_hash[:primitive_type]}"
