@@ -191,7 +191,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
         end
       end
       unless @property_hash[:parameters].empty?
-        parameters = 'params '
+        parameters = ''
         @property_hash[:parameters].each_pair do |k,v|
           parameters << "#{k}=#{v} "
         end
