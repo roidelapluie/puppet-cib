@@ -88,6 +88,8 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
 
   # Create just adds our resource to the property_hash and flush will take care
   # of actually doing the work.
+  # The existing_resource is there because pcs does not have a single command that
+  # updates or create a resource, so we flag the resources with that parameter
   def create
     @property_hash = {
       :name              => @resource[:name],
@@ -106,8 +108,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
     @property_hash[:cib] = @resource[:cib] if ! @resource[:cib].nil?
   end
 
-  # Unlike create we actually immediately delete the item.  Corosync forces us
-  # to "stop" the primitive before we are able to remove it.
+  # Unlike create we actually immediately delete the item.
   def destroy
     debug('Revmoving primitive')
     pcs('resource', 'delete', @resource[:name])
@@ -198,15 +199,17 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
   end
 
   # Flush is triggered on anything that has been detected as being
-  # modified in the property_hash.  It generates a temporary file with
-  # the updates that need to be made.  The temporary file is then used
-  # as stdin for the pcs command.  We have to do a bit of munging of our
-  # operations and parameters hash to eventually flatten them into a string
-  # that can be used by the pcs command.
+  # modified in the property_hash.
+  # It calls several pcs commands to make the resource look like the
+  # params.
   def flush
     unless @property_hash.empty?
+      # The ressource_type variable is used to check if one of the class,
+      # provider or type has changed
       ressource_type = "#{@property_hash[:primitive_class]}:"
-      ressource_type << "#{@property_hash[:provided_by]}:" if @property_hash[:provided_by]
+      if @property_hash[:provided_by]
+        ressource_type << "#{@property_hash[:provided_by]}:"
+      end
       ressource_type << "#{@property_hash[:primitive_type]}"
 
       unless @property_hash[:operations].empty?
@@ -237,6 +240,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
         end
       end
 
+      # We destroy the ressource if it's type, class or provider has changed
       unless @property_hash[:existing_resource] == :false
         existing_ressource_type = "#{@property_hash[:existing_primitive_class]}:"
         existing_ressource_type << "#{@property_hash[:existing_provided_by]}:" if @property_hash[:existing_provided_by]
