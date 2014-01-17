@@ -30,18 +30,22 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
   # for creating a new provider instance.
   def self.element_to_hash(e)
     hash = {
-      :primitive_class  => e.attributes['class'],
-      :primitive_type   => e.attributes['type'],
-      :provided_by      => e.attributes['provider'],
-      :name             => e.attributes['id'].to_sym,
-      :ensure           => :present,
-      :provider         => self.name,
-      :parameters       => nvpairs_to_hash(e.elements['instance_attributes']),
-      :operations       => {},
-      :utilization      => nvpairs_to_hash(e.elements['utilization']),
-      :metadata         => nvpairs_to_hash(e.elements['meta_attributes']),
-      :ms_metadata      => {},
-      :promotable       => :false
+      :primitive_class          => e.attributes['class'],
+      :primitive_type           => e.attributes['type'],
+      :provided_by              => e.attributes['provider'],
+      :name                     => e.attributes['id'].to_sym,
+      :ensure                   => :present,
+      :provider                 => self.name,
+      :parameters               => nvpairs_to_hash(e.elements['instance_attributes']),
+      :operations               => {},
+      :utilization              => nvpairs_to_hash(e.elements['utilization']),
+      :metadata                 => nvpairs_to_hash(e.elements['meta_attributes']),
+      :ms_metadata              => {},
+      :promotable               => :false,
+      :existing_resource        => :true,
+      :existing_primitive_class => e.attributes['class'],
+      :existing_primitive_type  => e.attributes['type'],
+      :existing_provided_by     => e.attributes['provider']
     }
 
     if ! e.elements['operations'].nil?
@@ -90,12 +94,13 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
   # of actually doing the work.
   def create
     @property_hash = {
-      :name            => @resource[:name],
-      :ensure          => :present,
-      :primitive_class => @resource[:primitive_class],
-      :provided_by     => @resource[:provided_by],
-      :primitive_type  => @resource[:primitive_type],
-      :promotable      => @resource[:promotable]
+      :name              => @resource[:name],
+      :ensure            => :present,
+      :primitive_class   => @resource[:primitive_class],
+      :provided_by       => @resource[:provided_by],
+      :primitive_type    => @resource[:primitive_type],
+      :promotable        => @resource[:promotable],
+      :existing_resource => :false
     }
     @property_hash[:parameters] = @resource[:parameters] if ! @resource[:parameters].nil?
     @property_hash[:operations] = @resource[:operations] if ! @resource[:operations].nil?
@@ -182,76 +187,92 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
   def flush
     unless @property_hash.empty?
       unless @property_hash[:operations].empty?
-        operations = ''
+        operations = []
         @property_hash[:operations].each do |o|
-          operations << "op #{o[0]} "
+          operations << [ "op",  "#{o[0]}" ]
           o[1].each_pair do |k,v|
-            operations << "#{k}=#{v} "
+            operations << "#{k}=#{v}"
           end
         end
       end
       unless @property_hash[:parameters].empty?
-        parameters = ''
+        parameters = []
         @property_hash[:parameters].each_pair do |k,v|
-          parameters << "#{k}=#{v} "
+          parameters << [ "#{k}=#{v}" ]
         end
       end
       unless @property_hash[:utilization].empty?
-        utilization = 'utilization '
+        utilization = [ 'utilization' ]
         @property_hash[:utilization].each_pair do |k,v|
-          utilization << "#{k}=#{v} "
+          utilization << [ "#{k}=#{v} " ]
         end
       end
       unless @property_hash[:metadata].empty?
-        metadatas = 'meta '
+        metadatas = [ 'meta' ]
         @property_hash[:metadata].each_pair do |k,v|
-          metadatas << "#{k}=#{v} "
+          metadatas << [ "#{k}=#{v}" ]
         end
       end
 
       ENV['CIB_shadow'] = @resource[:cib]
-      cmd = [ command(:pcs), 'resource', 'delete', "#{@property_hash[:name]}"]
-      if Puppet::PUPPETVERSION.to_f < 3.4
-        raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
-      else
-        raw = Puppet::Util::Execution.execute(cmd)
-        status = raw.exitstatus
-      end
-      ressource_type = "#{@property_hash[:primitive_class]}:"
-      ressource_type << "#{@property_hash[:provided_by]}:" if @property_hash[:provided_by]
-      ressource_type << "#{@property_hash[:primitive_type]}"
-      cmd = [ command(:pcs), 'resource', 'create', "#{@property_hash[:name]}" ]
-      cmd << [ ressource_type ]
-      cmd << [ "#{operations}" ] unless operations.nil?
-      cmd << [ "#{parameters}" ] unless parameters.nil?
-      cmd << [ "#{utilization}" ] unless utilization.nil?
-      cmd << [ "#{metadatas}" ] unless metadatas.nil?
-      if Puppet::PUPPETVERSION.to_f < 3.4
-        raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
-      else
-        raw = Puppet::Util::Execution.execute(cmd)
-        status = raw.exitstatus
-      end
-      if @property_hash[:promotable] == :true
-        cmd = [ command(:pcs), 'resource', 'delete', "ms_#{@property_hash[:name]}" ]
+
+      if @property_hash[:existing_resource] == :false
+        ressource_type = "#{@property_hash[:primitive_class]}:"
+        ressource_type << "#{@property_hash[:provided_by]}:" if @property_hash[:provided_by]
+        ressource_type << "#{@property_hash[:primitive_type]}"
+        cmd = [ command(:pcs), 'resource', 'create', "#{@property_hash[:name]}" ]
+        cmd << [ ressource_type ]
+        cmd << operations unless operations.nil?
+        cmd << parameters unless parameters.nil?
+        cmd << utilization unless utilization.nil?
+        cmd << metadatas unless metadatas.nil?
         if Puppet::PUPPETVERSION.to_f < 3.4
           raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
         else
-          raw = Puppet::Util::Execution.execute(cmd)
+          raw = Puppet::Util::Execution.execute(cmd, :failonfail => true)
           status = raw.exitstatus
         end
-        cmd = [ command(:pcs), "ms", "ms_#{@property_hash[:name]}", "#{@property_hash[:name]}" ]
-        unless @property_hash[:ms_metadata].empty?
-          cmd << [ 'meta' ]
-          @property_hash[:ms_metadata].each_pair do |k,v|
-            cmd << [ "#{k}=#{v}" ]
+        if @property_hash[:promotable] == :true
+          cmd = [ command(:pcs), 'resource', 'master', "ms_#{@property_hash[:name]}", "#{@property_hash[:name]}" ]
+          unless @property_hash[:ms_metadata].empty?
+            cmd << [ 'meta' ]
+            @property_hash[:ms_metadata].each_pair do |k,v|
+              cmd << [ "#{k}=#{v}" ]
+            end
+          end
+          if Puppet::PUPPETVERSION.to_f < 3.4
+            raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
+          else
+            raw = Puppet::Util::Execution.execute(cmd)
+            status = raw.exitstatus
           end
         end
+      else
+        cmd = [ command(:pcs), 'resource', 'update', "#{@property_hash[:name]}" ]
+        cmd << operations unless operations.nil?
+        cmd << parameters unless parameters.nil?
+        cmd << utilization unless utilization.nil?
+        cmd << metadatas unless metadatas.nil?
         if Puppet::PUPPETVERSION.to_f < 3.4
           raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
         else
-          raw = Puppet::Util::Execution.execute(cmd)
+          raw = Puppet::Util::Execution.execute(cmd, :failonfail => true)
           status = raw.exitstatus
+        end
+        if @property_hash[:promotable] == :true
+          cmd = [ command(:pcs), 'resource', 'update', "ms_#{@property_hash[:name]}", "#{@property_hash[:name]}" ]
+          unless @property_hash[:ms_metadata].empty?
+            cmd << [ 'meta' ]
+            @property_hash[:ms_metadata].each_pair do |k,v|
+              cmd << [ "#{k}=#{v}" ]
+            end
+          end
+          if Puppet::PUPPETVERSION.to_f < 3.4
+            raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
+          else
+            raw = Puppet::Util::Execution.execute(cmd)
+            status = raw.exitstatus
+          end
         end
       end
     end

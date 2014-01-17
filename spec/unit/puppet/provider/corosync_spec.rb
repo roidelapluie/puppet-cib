@@ -1,7 +1,7 @@
 require 'spec_helper'
-require 'puppet/provider/corosync'
+require 'puppet/provider/crmsh'
 
-describe Puppet::Provider::Corosync do
+describe Puppet::Provider::Crmsh do
   let :provider do
     described_class.new
   end
