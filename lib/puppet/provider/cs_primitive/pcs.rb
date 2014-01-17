@@ -223,12 +223,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
         cmd << parameters unless parameters.nil?
         cmd << utilization unless utilization.nil?
         cmd << metadatas unless metadatas.nil?
-        if Puppet::PUPPETVERSION.to_f < 3.4
-          raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
-        else
-          raw = Puppet::Util::Execution.execute(cmd, :failonfail => true)
-          status = raw.exitstatus
-        end
+        raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
         if @property_hash[:promotable] == :true
           cmd = [ command(:pcs), 'resource', 'master', "ms_#{@property_hash[:name]}", "#{@property_hash[:name]}" ]
           unless @property_hash[:ms_metadata].empty?
@@ -237,12 +232,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
               cmd << [ "#{k}=#{v}" ]
             end
           end
-          if Puppet::PUPPETVERSION.to_f < 3.4
-            raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
-          else
-            raw = Puppet::Util::Execution.execute(cmd)
-            status = raw.exitstatus
-          end
+          raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
         end
       else
         if @property_hash[:operations].empty? and not @property_hash[:existing_operations].empty?
@@ -259,12 +249,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
         cmd << parameters unless parameters.nil?
         cmd << utilization unless utilization.nil?
         cmd << metadatas unless metadatas.nil?
-        if Puppet::PUPPETVERSION.to_f < 3.4
-          raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
-        else
-          raw = Puppet::Util::Execution.execute(cmd, :failonfail => true)
-          status = raw.exitstatus
-        end
+        raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
         if @property_hash[:promotable] == :true
           cmd = [ command(:pcs), 'resource', 'update', "ms_#{@property_hash[:name]}", "#{@property_hash[:name]}" ]
           unless @property_hash[:ms_metadata].empty?
@@ -273,12 +258,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
               cmd << [ "#{k}=#{v}" ]
             end
           end
-          if Puppet::PUPPETVERSION.to_f < 3.4
-            raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
-          else
-            raw = Puppet::Util::Execution.execute(cmd)
-            status = raw.exitstatus
-          end
+          raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
         end
       end
     end
