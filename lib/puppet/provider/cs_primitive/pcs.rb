@@ -45,7 +45,8 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
       :existing_resource        => :true,
       :existing_primitive_class => e.attributes['class'],
       :existing_primitive_type  => e.attributes['type'],
-      :existing_provided_by     => e.attributes['provider']
+      :existing_provided_by     => e.attributes['provider'],
+      :existing_operations      => {}
     }
 
     if ! e.elements['operations'].nil?
@@ -55,6 +56,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
         valids.each do |k,v|
           hash[:operations][valids['name']][k] = v if k != 'name'
         end
+        hash[:existing_operations] = hash[:operations].dup
       end
     end
     if e.parent.name == 'master'
@@ -76,12 +78,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
     instances = []
 
     cmd = [ command(:pcs), 'cluster', 'cib' ]
-    if Puppet::PUPPETVERSION.to_f < 3.4
-      raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
-    else
-      raw = Puppet::Util::Execution.execute(cmd)
-      status = raw.exitstatus
-    end
+    raw, status = run_pcs_command(cmd)
     doc = REXML::Document.new(raw)
 
     REXML::XPath.each(doc, '//primitive') do |e|
@@ -248,6 +245,15 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
           end
         end
       else
+        if @property_hash[:operations].empty? and not @property_hash[:existing_operations].empty?
+          @property_hash[:existing_operations].each do |o|
+            cmd = [ command(:pcs), 'op', 'remove' ]
+            operations << [ "#{o[0]}" ]
+            o[1].each_pair do |k,v|
+              operations << "#{k}=#{v}"
+            end
+          end
+        end
         cmd = [ command(:pcs), 'resource', 'update', "#{@property_hash[:name]}" ]
         cmd << operations unless operations.nil?
         cmd << parameters unless parameters.nil?

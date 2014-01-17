@@ -36,7 +36,7 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
       if Puppet::PUPPETVERSION.to_f < 3.4
         Puppet::Util::SUIDManager.expects(:run_and_capture).with(['pcs', 'cluster', 'cib']).at_least_once.returns([test_cib, 0])
       else
-        Puppet::Util::Execution.expects(:execute).with(['pcs', 'cluster', 'cib']).at_least_once.returns(
+        Puppet::Util::Execution.expects(:execute).with(['pcs', 'cluster', 'cib'], {:failonfail => true}).at_least_once.returns(
           Puppet::Util::Execution::ProcessOutput.new(test_cib, 0)
         )
       end

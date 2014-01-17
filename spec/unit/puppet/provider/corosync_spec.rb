@@ -9,7 +9,7 @@ describe Puppet::Provider::Crmsh do
   it 'declares a crm_attribute command' do
     expect{
       described_class.command :crm_attribute
-    }.to_not raise_error(Puppet::DevError)
+    }.not_to raise_error
   end
 
   describe '#ready' do
