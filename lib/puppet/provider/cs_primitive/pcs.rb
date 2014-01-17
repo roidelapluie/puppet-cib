@@ -121,6 +121,18 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
     @property_hash[:parameters]
   end
 
+  def primitive_class
+    @property_hash[:primitive_class]
+  end
+
+  def provided_by
+    @property_hash[:provided_by]
+  end
+
+  def primitive_type
+    @property_hash[:primitive_type]
+  end
+
   def operations
     @property_hash[:operations]
   end
@@ -148,6 +160,17 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
     @property_hash[:parameters] = should
   end
 
+  def primitive_class=(should)
+    @property_hash[:primitive_class] = should
+  end
+
+  def provided_by=(should)
+    @property_hash[:provided_by] = should
+  end
+
+  def primitive_type=(should)
+    @property_hash[:primitive_type] = should
+  end
   def operations=(should)
     @property_hash[:operations] = should
   end
@@ -182,10 +205,14 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
   # that can be used by the pcs command.
   def flush
     unless @property_hash.empty?
+      ressource_type = "#{@property_hash[:primitive_class]}:"
+      ressource_type << "#{@property_hash[:provided_by]}:" if @property_hash[:provided_by]
+      ressource_type << "#{@property_hash[:primitive_type]}"
+
       unless @property_hash[:operations].empty?
         operations = []
         @property_hash[:operations].each do |o|
-          operations << [ "op",  "#{o[0]}" ]
+          operations += [ "op",  "#{o[0]}" ]
           o[1].each_pair do |k,v|
             operations << "#{k}=#{v}"
           end
@@ -194,41 +221,48 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
       unless @property_hash[:parameters].empty?
         parameters = []
         @property_hash[:parameters].each_pair do |k,v|
-          parameters << [ "#{k}=#{v}" ]
+          parameters << "#{k}=#{v}"
         end
       end
       unless @property_hash[:utilization].empty?
         utilization = [ 'utilization' ]
         @property_hash[:utilization].each_pair do |k,v|
-          utilization << [ "#{k}=#{v} " ]
+          utilization << "#{k}=#{v}"
         end
       end
       unless @property_hash[:metadata].empty?
         metadatas = [ 'meta' ]
         @property_hash[:metadata].each_pair do |k,v|
-          metadatas << [ "#{k}=#{v}" ]
+          metadatas << "#{k}=#{v}"
         end
       end
 
-      ENV['CIB_shadow'] = @resource[:cib]
+      unless @property_hash[:existing_resource] == :false
+        existing_ressource_type = "#{@property_hash[:existing_primitive_class]}:"
+        existing_ressource_type << "#{@property_hash[:existing_provided_by]}:" if @property_hash[:existing_provided_by]
+        existing_ressource_type << "#{@property_hash[:existing_primitive_type]}"
+        if existing_ressource_type != ressource_type
+          destroy
+          force_reinstall = :true
+        end
+      end
 
-      if @property_hash[:existing_resource] == :false
-        ressource_type = "#{@property_hash[:primitive_class]}:"
-        ressource_type << "#{@property_hash[:provided_by]}:" if @property_hash[:provided_by]
-        ressource_type << "#{@property_hash[:primitive_type]}"
+      ENV['CIB_shadow'] = @property_hash[:cib]
+
+      if @property_hash[:existing_resource] == :false or force_reinstall == :true
         cmd = [ command(:pcs), 'resource', 'create', "#{@property_hash[:name]}" ]
-        cmd << [ ressource_type ]
-        cmd << operations unless operations.nil?
-        cmd << parameters unless parameters.nil?
-        cmd << utilization unless utilization.nil?
-        cmd << metadatas unless metadatas.nil?
+        cmd << ressource_type
+        cmd += operations unless operations.nil?
+        cmd += parameters unless parameters.nil?
+        cmd += utilization unless utilization.nil?
+        cmd += metadatas unless metadatas.nil?
         raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
         if @property_hash[:promotable] == :true
           cmd = [ command(:pcs), 'resource', 'master', "ms_#{@property_hash[:name]}", "#{@property_hash[:name]}" ]
           unless @property_hash[:ms_metadata].empty?
-            cmd << [ 'meta' ]
+            cmd << 'meta'
             @property_hash[:ms_metadata].each_pair do |k,v|
-              cmd << [ "#{k}=#{v}" ]
+              cmd << "#{k}=#{v}"
             end
           end
           raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
@@ -237,7 +271,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
         if @property_hash[:operations].empty? and not @property_hash[:existing_operations].empty?
           @property_hash[:existing_operations].each do |o|
             cmd = [ command(:pcs), 'resource', 'op', 'remove', "#{@property_hash[:name]}" ]
-            cmd << [ "#{o[0]}" ]
+            cmd << "#{o[0]}"
             o[1].each_pair do |k,v|
               cmd << "#{k}=#{v}"
             end
@@ -245,17 +279,17 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
           end
         end
         cmd = [ command(:pcs), 'resource', 'update', "#{@property_hash[:name]}" ]
-        cmd << operations unless operations.nil?
-        cmd << parameters unless parameters.nil?
-        cmd << utilization unless utilization.nil?
-        cmd << metadatas unless metadatas.nil?
+        cmd += operations unless operations.nil?
+        cmd += parameters unless parameters.nil?
+        cmd += utilization unless utilization.nil?
+        cmd += metadatas unless metadatas.nil?
         raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
         if @property_hash[:promotable] == :true
           cmd = [ command(:pcs), 'resource', 'update', "ms_#{@property_hash[:name]}", "#{@property_hash[:name]}" ]
           unless @property_hash[:ms_metadata].empty?
-            cmd << [ 'meta' ]
+            cmd << 'meta'
             @property_hash[:ms_metadata].each_pair do |k,v|
-              cmd << [ "#{k}=#{v}" ]
+              cmd << "#{k}=#{v}"
             end
           end
           raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)

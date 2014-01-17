@@ -47,6 +47,7 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
       expect(instances.count).to eq(1)
     end
 
+
     describe 'each instance' do
       let :instance do
         instances.first
@@ -58,11 +59,6 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
 
       it "is named by the <primitive>'s id attribute" do
         expect(instance.name).to eq(:example_vm)
-      end
-
-      it "has an primitive_class parameter corresponding to the <primitive>'s class attribute" do
-        pending 'knowing the proper way to assert this'
-        expect(instance.primitive_class).to eq("ocf")
       end
 
       it "has an primitive_type parameter corresponding to the <primitive>'s type attribute" do
@@ -115,19 +111,34 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
   end
 
   context 'when flushing' do
-    let :resource do
-      Puppet::Type.type(:cs_primitive).new(
-        :name => 'testResource',
-        :provider => :crm,
-        :primitive_class => 'ocf',
-        :provided_by => 'heartbeat',
-        :primitive_type => 'IPaddr2')
-    end
 
-    let :instance do
-      instance = described_class.new(resource)
-      instance.create
-      instance
+    let :instances do
+
+      test_cib = <<-EOS
+        <configuration>
+          <resources>
+            <primitive class="ocf" id="example_vip-2" provider="heartbeat" type="IPaddr2">
+              <operations>
+                <op id="example_vip-2-monitor-10s" interval="10s" name="monitor"/>
+              </operations>
+              <instance_attributes id="example_vip-2-instance_attributes">
+                <nvpair id="example_vip-2-instance_attributes-cidr_netmask" name="cidr_netmask" value="24"/>
+                <nvpair id="example_vip-2-instance_attributes-ip" name="ip" value="172.31.110.68"/>
+              </instance_attributes>
+            </primitive>
+          </resources>
+        </configuration>
+      EOS
+
+      described_class.expects(:block_until_ready).returns(nil)
+      if Puppet::PUPPETVERSION.to_f < 3.4
+        Puppet::Util::SUIDManager.expects(:run_and_capture).with(['pcs', 'cluster', 'cib']).at_least_once.returns([test_cib, 0])
+      else
+        Puppet::Util::Execution.expects(:execute).with(['pcs', 'cluster', 'cib'], {:failonfail => true}).at_least_once.returns(
+          Puppet::Util::Execution::ProcessOutput.new(test_cib, 0)
+        )
+      end
+      instances = described_class.instances
     end
 
     def expect_update(pattern)
@@ -144,6 +155,25 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
           Puppet::Util::Execution::ProcessOutput.new('', 0)
         )
       end
+    end
+
+    let :resource do
+      Puppet::Type.type(:cs_primitive).new(
+        :name => 'testResource',
+        :provider => :crm,
+        :primitive_class => 'ocf',
+        :provided_by => 'heartbeat',
+        :primitive_type => 'IPaddr2')
+    end
+
+    let :instance do
+      instance = described_class.new(resource)
+      instance.create
+      instance
+    end
+
+    let :vip_instance do
+      instances.first
     end
 
     it 'can flush without changes' do
@@ -179,5 +209,12 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
       expect_update(/create testResource ocf:heartbeat:IPaddr2/)
       instance.flush
     end
+
+    it "sets a primitive_class parameter corresponding to the <primitive>'s class attribute" do
+      vip_instance.primitive_class = 'IPaddr3'
+      expect_update(/delete testResource/)
+      vip_instance.flush
+    end
+
   end
 end
