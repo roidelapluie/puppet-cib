@@ -110,7 +110,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
 
   # Unlike create we actually immediately delete the item.
   def destroy
-    debug('Revmoving primitive')
+    debug('Removing primitive')
     pcs('resource', 'delete', @resource[:name])
     @property_hash.clear
   end
@@ -246,7 +246,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
         existing_ressource_type << "#{@property_hash[:existing_provided_by]}:" if @property_hash[:existing_provided_by]
         existing_ressource_type << "#{@property_hash[:existing_primitive_type]}"
         if existing_ressource_type != ressource_type
-          debug('Revmoving primitive')
+          debug('Removing primitive')
           Puppet::Provider::Pacemaker::run_pcs_command([command(:pcs), 'resource', 'delete', @property_hash[:name]])
           force_reinstall = :true
         end
