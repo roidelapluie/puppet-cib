@@ -7,6 +7,8 @@ Puppet::Type.type(:cs_colocation).provide(:pcs, :parent => Puppet::Provider::Pac
         of current primitive colocations on the system; add, delete, or adjust various
         aspects.'
 
+  defaultfor :operatingsystem => [:fedora, :centos, :redhat]
+
   # Path to the crm binary for interacting with the cluster configuration.
   # Decided to just go with relative.
   commands :pcs => 'pcs'
@@ -18,12 +20,7 @@ Puppet::Type.type(:cs_colocation).provide(:pcs, :parent => Puppet::Provider::Pac
     instances = []
 
     cmd = [ command(:pcs), 'cluster', 'cib' ]
-    if Puppet::PUPPETVERSION.to_f < 3.4
-      raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
-    else
-      raw = Puppet::Util::Execution.execute(cmd)
-      status = raw.exitstatus
-    end
+    raw, status = run_pcs_command(cmd)
     doc = REXML::Document.new(raw)
 
     doc.root.elements['configuration'].elements['constraints'].each_element('rsc_colocation') do |e|
@@ -48,7 +45,8 @@ Puppet::Type.type(:cs_colocation).provide(:pcs, :parent => Puppet::Provider::Pac
         :ensure     => :present,
         :primitives => [rsc, with_rsc].sort,
         :score      => items['score'],
-        :provider   => self.name
+        :provider   => self.name,
+        :new        => false
       }
       instances << new(colocation_instance)
     end
@@ -64,13 +62,15 @@ Puppet::Type.type(:cs_colocation).provide(:pcs, :parent => Puppet::Provider::Pac
       :primitives => @resource[:primitives],
       :score      => @resource[:score],
       :cib        => @resource[:cib],
+      :new        => true
     }
   end
 
   # Unlike create we actually immediately delete the item.
   def destroy
-    debug('Revmoving colocation')
-    pcs('resource', 'delete', @resource[:name])
+    debug('Removing colocation')
+    cmd=['constraint', 'remove', @resource[:name]]
+    run_pcs_command(cmd)
     @property_hash.clear
   end
 
@@ -104,14 +104,41 @@ Puppet::Type.type(:cs_colocation).provide(:pcs, :parent => Puppet::Provider::Pac
   # as stdin for the pcs command.
   def flush
     unless @property_hash.empty?
-      updated = "colocation "
-      updated << "#{@property_hash[:name]} #{@property_hash[:score]}: #{@property_hash[:primitives].join(' ')}"
-      Tempfile.open('puppet_crm_update') do |tmpfile|
-        tmpfile.write(updated)
-        tmpfile.flush
-        ENV["CIB_shadow"] = @resource[:cib]
-        crm('configure', 'load', 'update', tmpfile.path.to_s)
+      if @property_hash.new == false
+        debug('Removing colocation')
+        cmd=['constraint', 'remove', @resource[:name]]
+        run_pcs_command(cmd)
       end
+
+      cmd = [ 'colocation' ]
+      cmd << "add"
+      rsc = @property_hash[:primitives][0]
+      if rsc.include? ':'
+        items = rsc.split[':']
+        if items[1] == 'Master'
+          cmd << 'master'
+        elsif items[1] == 'Slave'
+          cmd << 'slave'
+        end
+        cmd << items[0]
+      else
+        cmd << rsc
+      end
+      cmd << 'with'
+      rsc = @property_hash[:primitives][1]
+      if rsc.include? ':'
+        items = rsc.split[':']
+        if items[1] == 'Master'
+          cmd << 'master'
+        elsif items[1] == 'Slave'
+          cmd << 'slave'
+        end
+        cmd << items[0]
+      else
+        cmd << rsc
+      end
+      cmd << @property_hash[:score]
+      cmd << "id=#{@property_hash[:name]}"
     end
   end
 end
