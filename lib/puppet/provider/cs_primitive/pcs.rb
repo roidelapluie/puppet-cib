@@ -255,7 +255,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
       ENV['CIB_shadow'] = @property_hash[:cib]
 
       if @property_hash[:existing_resource] == :false or force_reinstall == :true
-        cmd = [ command(:pcs), 'resource', 'create', "#{@property_hash[:name]}" ]
+        cmd = [ command(:pcs), 'resource', 'create', '--no-default-ops', "#{@property_hash[:name]}" ]
         cmd << ressource_type
         cmd += operations unless operations.nil?
         cmd += parameters unless parameters.nil?
