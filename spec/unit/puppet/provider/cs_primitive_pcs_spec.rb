@@ -62,16 +62,6 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
         expect(instance.name).to eq(:example_vm)
       end
 
-      it "has an primitive_type parameter corresponding to the <primitive>'s type attribute" do
-        pending 'knowing the proper way to assert this'
-        expect(instance.primitive_type).to eq("Xen")
-      end
-
-      it "has an provided_by parameter corresponding to the <primitive>'s provider attribute" do
-        pending 'knowing the proper way to assert this'
-        expect(instance.provided_by).to eq("heartbeat")
-      end
-
       it 'has a parameters property corresponding to <instance_attributes>' do
         expect(instance.parameters).to eq({
           "xmfile" => "/etc/xen/example_vm.cfg",
@@ -218,6 +208,18 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
 
     it "sets a primitive_class parameter corresponding to the <primitive>'s class attribute" do
       vip_instance.primitive_class = 'IPaddr3'
+      expect_update(/resource (create|delete) example_vip/).twice
+      vip_instance.flush
+    end
+
+    it "sets an primitive_type parameter corresponding to the <primitive>'s type attribute" do
+      vip_instance.primitive_type = 'stonith'
+      expect_update(/resource (create|delete) example_vip/).twice
+      vip_instance.flush
+    end
+
+    it "sets an provided_by parameter corresponding to the <primitive>'s provider attribute" do
+      vip_instance.provided_by = 'inuits'
       expect_update(/resource (create|delete) example_vip/).twice
       vip_instance.flush
     end
