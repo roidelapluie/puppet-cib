@@ -204,25 +204,25 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
     end
 
     it 'sets the primitive name and type' do
-      expect_update(/^pcs resource create --no-default-ops testResource ocf:heartbeat:IPaddr2$/)
+      expect_update(/^pcs resource create testResource ocf:heartbeat:IPaddr2$/)
       instance.flush
     end
 
     it "sets a primitive_class parameter corresponding to the <primitive>'s class attribute" do
       vip_instance.primitive_class = 'IPaddr3'
-      expect_update(/resource (create --no-default-ops|delete) example_vip/).twice
+      expect_update(/resource (create|delete) example_vip/).twice
       vip_instance.flush
     end
 
     it "sets an primitive_type parameter corresponding to the <primitive>'s type attribute" do
       vip_instance.primitive_type = 'stonith'
-      expect_update(/resource (create --no-default-ops|delete) example_vip/).twice
+      expect_update(/resource (create|delete) example_vip/).twice
       vip_instance.flush
     end
 
     it "sets an provided_by parameter corresponding to the <primitive>'s provider attribute" do
       vip_instance.provided_by = 'inuits'
-      expect_update(/resource (create --no-default-ops|delete) example_vip/).twice
+      expect_update(/resource (create|delete) example_vip/).twice
       vip_instance.flush
     end
 
