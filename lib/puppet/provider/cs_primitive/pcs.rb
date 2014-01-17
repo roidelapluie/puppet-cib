@@ -237,11 +237,12 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
       else
         if @property_hash[:operations].empty? and not @property_hash[:existing_operations].empty?
           @property_hash[:existing_operations].each do |o|
-            cmd = [ command(:pcs), 'op', 'remove' ]
-            operations << [ "#{o[0]}" ]
+            cmd = [ command(:pcs), 'resource', 'op', 'remove', "#{@property_hash[:name]}" ]
+            cmd << [ "#{o[0]}" ]
             o[1].each_pair do |k,v|
-              operations << "#{k}=#{v}"
+              cmd << "#{k}=#{v}"
             end
+            Puppet::Provider::Pacemaker::run_pcs_command(cmd)
           end
         end
         cmd = [ command(:pcs), 'resource', 'update', "#{@property_hash[:name]}" ]
