@@ -277,7 +277,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
         # try to remove the default monitor operation
         if @property_hash[:operations][:monitor].nil?
           cmd = [ command(:pcs), 'resource', 'op', 'remove', "#{@property_hash[:name]}", 'monitoring', 'interval=60s' ]
-          Puppet::Provider::Pacemaker::run_pcs_command(cmd, :failonfail => 0)
+          Puppet::Provider::Pacemaker::run_pcs_command(cmd, :failonfail => :false)
         end
       else
         # if there is no operations defined, we ensure that they are not present
