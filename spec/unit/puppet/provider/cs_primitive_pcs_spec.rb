@@ -204,7 +204,7 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
     end
 
     it 'sets the primitive name and type' do
-      expect_update(/^pcs resource (create testResource ocf:heartbeat:IPaddr2|op remove testResource monitor interval=60s)$/)
+      expect_update(/^pcs resource (create testResource ocf:heartbeat:IPaddr2|op remove testResource monitor interval=60s)/)
       instance.flush
     end
 
