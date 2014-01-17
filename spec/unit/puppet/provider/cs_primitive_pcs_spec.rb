@@ -43,6 +43,7 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
       instances = described_class.instances
     end
 
+
     it 'should have an instance for each <primitive>' do
       expect(instances.count).to eq(1)
     end
@@ -117,13 +118,13 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
       test_cib = <<-EOS
         <configuration>
           <resources>
-            <primitive class="ocf" id="example_vip-2" provider="heartbeat" type="IPaddr2">
+            <primitive class="ocf" id="example_vip" provider="heartbeat" type="IPaddr2">
               <operations>
-                <op id="example_vip-2-monitor-10s" interval="10s" name="monitor"/>
+                <op id="example_vip-monitor-10s" interval="10s" name="monitor"/>
               </operations>
-              <instance_attributes id="example_vip-2-instance_attributes">
-                <nvpair id="example_vip-2-instance_attributes-cidr_netmask" name="cidr_netmask" value="24"/>
-                <nvpair id="example_vip-2-instance_attributes-ip" name="ip" value="172.31.110.68"/>
+              <instance_attributes id="example_vip-instance_attributes">
+                <nvpair id="example_vip-instance_attributes-cidr_netmask" name="cidr_netmask" value="24"/>
+                <nvpair id="example_vip-instance_attributes-ip" name="ip" value="172.31.110.68"/>
               </instance_attributes>
             </primitive>
           </resources>
@@ -157,6 +158,10 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
       end
     end
 
+    let :prefetch do
+      described_class.prefetch
+    end
+
     let :resource do
       Puppet::Type.type(:cs_primitive).new(
         :name => 'testResource',
@@ -173,7 +178,8 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
     end
 
     let :vip_instance do
-      instances.first
+      vip_instance = instances.first
+      vip_instance
     end
 
     it 'can flush without changes' do
@@ -212,7 +218,7 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
 
     it "sets a primitive_class parameter corresponding to the <primitive>'s class attribute" do
       vip_instance.primitive_class = 'IPaddr3'
-      expect_update(/delete testResource/)
+      expect_update(/resource (create|delete) example_vip/).twice
       vip_instance.flush
     end
 
