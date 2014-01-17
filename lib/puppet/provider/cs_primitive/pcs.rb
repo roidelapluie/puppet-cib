@@ -12,6 +12,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
 
   commands :pcs => 'pcs'
 
+  defaultfor :operatingsystem => [:fedora, :centos, :redhat]
   # given an XML element containing some <nvpair>s, return a hash. Return an
   # empty hash if `e` is nil.
   def self.nvpairs_to_hash(e)
