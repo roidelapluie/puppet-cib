@@ -242,12 +242,12 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
         existing_ressource_type << "#{@property_hash[:existing_provided_by]}:" if @property_hash[:existing_provided_by]
         existing_ressource_type << "#{@property_hash[:existing_primitive_type]}"
         if existing_ressource_type != ressource_type
-          destroy
+          @resource.destroy
           force_reinstall = :true
         end
       end
 
-      ENV['CIB_shadow'] = @property_hash[:cib]
+      ENV['CIB_shadow'] = @resource[:cib]
 
       if @property_hash[:existing_resource] == :false or force_reinstall == :true
         cmd = [ command(:pcs), 'resource', 'create', "#{@property_hash[:name]}" ]
