@@ -113,9 +113,6 @@ Puppet::Type.type(:cs_order).provide(:crm, :parent => Puppet::Provider::Crmsh) d
       updated << "#{@property_hash[:name]} #{@property_hash[:score]}: "
       updated << "#{@property_hash[:first]} #{@property_hash[:second]}"
       Tempfile.open('puppet_crm_update') do |tmpfile|
-        print "\n"
-        print updated
-        print "\n"
         tmpfile.write(updated)
         tmpfile.flush
         ENV['CIB_shadow'] = @resource[:cib]
