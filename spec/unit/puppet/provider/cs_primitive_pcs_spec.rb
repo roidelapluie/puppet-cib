@@ -135,13 +135,13 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
     def expect_update(pattern)
       if Puppet::PUPPETVERSION.to_f < 3.4
         Puppet::Util::SUIDManager.expects(:run_and_capture).with { |*args|
-          cmdline=args.join(" ").sub(/ failonfail(true|false)$/,"")
+          cmdline=args[0].join(" ")
           expect(cmdline).to match(pattern)
           true
         }.at_least_once.returns(['', 0])
       else
         Puppet::Util::Execution.expects(:execute).with{ |*args|
-          cmdline=args.join(" ").sub(/ failonfail(true|false)$/,"")
+          cmdline=args[0].join(" ")
           expect(cmdline).to match(pattern)
           true
         }.at_least_once.returns(
