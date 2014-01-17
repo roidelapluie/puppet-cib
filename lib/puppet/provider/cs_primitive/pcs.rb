@@ -262,6 +262,8 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
         cmd += utilization unless utilization.nil?
         cmd += metadatas unless metadatas.nil?
         raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
+        # if we are using a master/slave resource, prepend ms_ before its name
+        # and declare it as a master/slave resource
         if @property_hash[:promotable] == :true
           cmd = [ command(:pcs), 'resource', 'master', "ms_#{@property_hash[:name]}", "#{@property_hash[:name]}" ]
           unless @property_hash[:ms_metadata].empty?
@@ -273,6 +275,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
           raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
         end
       else
+        # if there is no operations defined, we ensure that they are not present
         if @property_hash[:operations].empty? and not @property_hash[:existing_operations].empty?
           @property_hash[:existing_operations].each do |o|
             cmd = [ command(:pcs), 'resource', 'op', 'remove', "#{@property_hash[:name]}" ]
