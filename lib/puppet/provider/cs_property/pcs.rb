@@ -6,9 +6,10 @@ Puppet::Type.type(:cs_property).provide(:pcs, :parent => Puppet::Provider::Pacem
         abstract corosync/pacemaker vs. keepalived. This provider will check the state
         of Corosync cluster configuration properties.'
 
+  defaultfor :operatingsystem => [:fedora, :centos, :redhat]
+
   # Path to the crm binary for interacting with the cluster configuration.
   commands :pcs           => 'pcs'
-  commands :cibadmin      => 'cibadmin'
 
   def self.instances
 
@@ -17,12 +18,7 @@ Puppet::Type.type(:cs_property).provide(:pcs, :parent => Puppet::Provider::Pacem
     instances = []
 
     cmd = [ command(:pcs), 'cluster', 'cib' ]
-    if Puppet::PUPPETVERSION.to_f < 3.4
-      raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
-    else
-      raw = Puppet::Util::Execution.execute(cmd)
-      status = raw.exitstatus
-    end
+    raw, status = run_pcs_command(cmd)
     doc = REXML::Document.new(raw)
 
     doc.root.elements['configuration/crm_config/cluster_property_set'].each_element do |e|
@@ -52,8 +48,9 @@ Puppet::Type.type(:cs_property).provide(:pcs, :parent => Puppet::Provider::Pacem
 
   # Unlike create we actually immediately delete the item.
   def destroy
-    debug('Revmoving cluster property')
-    cibadmin('--scope', 'crm_config', '--delete', '--xpath', "//nvpair[@name='#{resource[:name]}']")
+    debug('Removing cluster property')
+    cmd = [ command(:pcs), 'property', 'unset', "#{@property_hash[:name]}" ]
+    raw, status = run_pcs_command(cmd)
     @property_hash.clear
   end
 
@@ -80,7 +77,8 @@ Puppet::Type.type(:cs_property).provide(:pcs, :parent => Puppet::Provider::Pacem
       # clear this on properties, in case it's set from a previous
       # run of a different corosync type
       ENV['CIB_shadow'] = nil
-      crm('configure', 'property', '$id="cib-bootstrap-options"', "#{@property_hash[:name]}=#{@property_hash[:value]}")
+      cmd = [ command(:pcs), 'property', 'set', "#{@property_hash[:name]}=#{@property_hash[:value]}" ]
+      raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
     end
   end
 end
