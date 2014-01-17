@@ -10,7 +10,6 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
         operations and parameters.  A hash is used instead of constucting a
         better model since these values can be almost anything.'
 
-  # Path to the crm binary for interacting with the cluster configuration.
   commands :pcs => 'pcs'
 
   # given an XML element containing some <nvpair>s, return a hash. Return an
