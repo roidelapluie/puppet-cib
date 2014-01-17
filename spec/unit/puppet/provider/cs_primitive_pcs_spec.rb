@@ -187,42 +187,42 @@ describe Puppet::Type.type(:cs_primitive).provider(:pcs) do
 
     it 'sets utilization' do
       instance.utilization = {'waffles' => '5'}
-      expect_update(/utilization waffles=5/)
+      expect_update(/(pcs resource op remove|utilization waffles=5)/)
       instance.flush
     end
 
     it 'sets parameters' do
       instance.parameters = {'fluffyness' => '12'}
-      expect_update(/fluffyness=12/)
+      expect_update(/(pcs resource op remove|fluffyness=12)/)
       instance.flush
     end
 
     it 'sets metadata' do
       instance.metadata = {'target-role' => 'Started'}
-      expect_update(/meta target-role=Started/)
+      expect_update(/(pcs resource op remove|meta target-role=Started)/)
       instance.flush
     end
 
     it 'sets the primitive name and type' do
-      expect_update(/^pcs resource create testResource ocf:heartbeat:IPaddr2$/)
+      expect_update(/^pcs resource (create testResource ocf:heartbeat:IPaddr2|op remove testResource monitor interval=60s)$/)
       instance.flush
     end
 
     it "sets a primitive_class parameter corresponding to the <primitive>'s class attribute" do
       vip_instance.primitive_class = 'IPaddr3'
-      expect_update(/resource (create|delete) example_vip/).twice
+      expect_update(/resource (create|delete|op remove) example_vip/)
       vip_instance.flush
     end
 
     it "sets an primitive_type parameter corresponding to the <primitive>'s type attribute" do
       vip_instance.primitive_type = 'stonith'
-      expect_update(/resource (create|delete) example_vip/).twice
+      expect_update(/resource (create|delete|op remove) example_vip/)
       vip_instance.flush
     end
 
     it "sets an provided_by parameter corresponding to the <primitive>'s provider attribute" do
       vip_instance.provided_by = 'inuits'
-      expect_update(/resource (create|delete) example_vip/).twice
+      expect_update(/resource (create|delete|op remove) example_vip/)
       vip_instance.flush
     end
 
