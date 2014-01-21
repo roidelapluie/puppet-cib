@@ -258,8 +258,8 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
       if @property_hash[:existing_resource] == :false or force_reinstall == :true
         cmd = [ command(:pcs), 'resource', 'create', "#{@property_hash[:name]}" ]
         cmd << ressource_type
-        cmd += operations unless operations.nil?
         cmd += parameters unless parameters.nil?
+        cmd += operations unless operations.nil?
         cmd += utilization unless utilization.nil?
         cmd += metadatas unless metadatas.nil?
         raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
@@ -293,8 +293,8 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
           end
         end
         cmd = [ command(:pcs), 'resource', 'update', "#{@property_hash[:name]}" ]
-        cmd += operations unless operations.nil?
         cmd += parameters unless parameters.nil?
+        cmd += operations unless operations.nil?
         cmd += utilization unless utilization.nil?
         cmd += metadatas unless metadatas.nil?
         raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)

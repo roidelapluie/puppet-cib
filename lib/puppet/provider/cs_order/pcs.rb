@@ -116,18 +116,18 @@ Puppet::Type.type(:cs_order).provide(:pcs, :parent => Puppet::Provider::Pacemake
       end
 
       cmd = [ command(:pcs), 'constraint', 'order' ]
-      cmd << "add"
       rsc = @property_hash[:first]
       if rsc.include? ':'
-        items = rsc.split[':']
+        items = rsc.split(':')
         cmd << items[1]
         cmd << items[0]
       else
         cmd << rsc
       end
       cmd << 'then'
-      rsc = @property_hash[:second].pop
+      rsc = @property_hash[:second]
       if rsc.include? ':'
+        items = rsc.split(':')
         cmd << items[1]
         cmd << items[0]
       else
