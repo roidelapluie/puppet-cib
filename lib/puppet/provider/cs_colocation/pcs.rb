@@ -26,13 +26,13 @@ Puppet::Type.type(:cs_colocation).provide(:pcs, :parent => Puppet::Provider::Pac
     doc.root.elements['configuration'].elements['constraints'].each_element('rsc_colocation') do |e|
       items = e.attributes
 
-      if items['rsc-role']
+      if items['rsc-role'] and items['rsc-role'] != "Started"
         rsc = "#{items['rsc']}:#{items['rsc-role']}"
       else
         rsc = items['rsc']
       end
 
-      if items ['with-rsc-role']
+      if items ['with-rsc-role'] and items['with-rsc-role'] != "Started"
         with_rsc = "#{items['with-rsc']}:#{items['with-rsc-role']}"
       else
         with_rsc = items['with-rsc']
@@ -69,8 +69,8 @@ Puppet::Type.type(:cs_colocation).provide(:pcs, :parent => Puppet::Provider::Pac
   # Unlike create we actually immediately delete the item.
   def destroy
     debug('Removing colocation')
-    cmd=['constraint', 'remove', @resource[:name]]
-    run_pcs_command(cmd)
+    cmd=[ command(:pcs), 'constraint', 'remove', @resource[:name]]
+    Puppet::Provider::Pacemaker::run_pcs_command(cmd)
     @property_hash.clear
   end
 
@@ -104,15 +104,15 @@ Puppet::Type.type(:cs_colocation).provide(:pcs, :parent => Puppet::Provider::Pac
   # as stdin for the pcs command.
   def flush
     unless @property_hash.empty?
-      if @property_hash.new == false
+      if @property_hash[:new] == false
         debug('Removing colocation')
-        cmd=['constraint', 'remove', @resource[:name]]
-        run_pcs_command(cmd)
+        cmd=[ command(:pcs), 'constraint', 'remove', @resource[:name]]
+        Puppet::Provider::Pacemaker::run_pcs_command(cmd)
       end
 
-      cmd = [ 'colocation' ]
+      cmd = [ command(:pcs), 'constraint', 'colocation' ]
       cmd << "add"
-      rsc = @property_hash[:primitives][0]
+      rsc = @property_hash[:primitives].pop
       if rsc.include? ':'
         items = rsc.split[':']
         if items[1] == 'Master'
@@ -125,9 +125,9 @@ Puppet::Type.type(:cs_colocation).provide(:pcs, :parent => Puppet::Provider::Pac
         cmd << rsc
       end
       cmd << 'with'
-      rsc = @property_hash[:primitives][1]
+      rsc = @property_hash[:primitives].pop
       if rsc.include? ':'
-        items = rsc.split[':']
+        items = rsc.split(':')
         if items[1] == 'Master'
           cmd << 'master'
         elsif items[1] == 'Slave'
@@ -137,8 +137,9 @@ Puppet::Type.type(:cs_colocation).provide(:pcs, :parent => Puppet::Provider::Pac
       else
         cmd << rsc
       end
-      cmd << @property_hash[:score]
+      cmd << @property_hash[:score].to_s
       cmd << "id=#{@property_hash[:name]}"
+      raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
     end
   end
 end
