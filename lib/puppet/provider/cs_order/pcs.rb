@@ -7,6 +7,8 @@ Puppet::Type.type(:cs_order).provide(:pcs, :parent => Puppet::Provider::Pacemake
         of current primitive start orders on the system; add, delete, or adjust various
         aspects.'
 
+  defaultfor :operatingsystem => [:fedora, :centos, :redhat]
+
   # Path to the crm binary for interacting with the cluster configuration.
   commands :pcs => 'pcs'
 
