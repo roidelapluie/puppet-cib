@@ -17,12 +17,7 @@ Puppet::Type.type(:cs_order).provide(:pcs, :parent => Puppet::Provider::Pacemake
     instances = []
 
     cmd = [ command(:pcs), 'cluster', 'cib' ]
-    if Puppet::PUPPETVERSION.to_f < 3.4
-      raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
-    else
-      raw = Puppet::Util::Execution.execute(cmd)
-      status = raw.exitstatus
-    end
+    raw, status = run_pcs_command(cmd)
     doc = REXML::Document.new(raw)
 
     doc.root.elements['configuration'].elements['constraints'].each_element('rsc_order') do |e|
@@ -46,7 +41,8 @@ Puppet::Type.type(:cs_order).provide(:pcs, :parent => Puppet::Provider::Pacemake
         :first      => first,
         :second     => second,
         :score      => items['score'],
-        :provider   => self.name
+        :provider   => self.name,
+        :new        => false
       }
       instances << new(order_instance)
     end
@@ -63,13 +59,15 @@ Puppet::Type.type(:cs_order).provide(:pcs, :parent => Puppet::Provider::Pacemake
       :second     => @resource[:second],
       :score      => @resource[:score],
       :cib        => @resource[:cib],
+      :new        => true,
     }
   end
 
   # Unlike create we actually immediately delete the item.
   def destroy
-    debug('Revmoving order directive')
-    pcs('resource', 'delete', @resource[:name])
+    debug('Removing order directive')
+    cmd=[ command(:pcs), 'constraint', 'remove', @resource[:name]]
+    Puppet::Provider::Pacemaker::run_pcs_command(cmd)
     @property_hash.clear
   end
 
@@ -109,15 +107,32 @@ Puppet::Type.type(:cs_order).provide(:pcs, :parent => Puppet::Provider::Pacemake
   # as stdin for the pcs command.
   def flush
     unless @property_hash.empty?
-      updated = 'order '
-      updated << "#{@property_hash[:name]} #{@property_hash[:score]}: "
-      updated << "#{@property_hash[:first]} #{@property_hash[:second]}"
-      Tempfile.open('puppet_crm_update') do |tmpfile|
-        tmpfile.write(updated)
-        tmpfile.flush
-        ENV['CIB_shadow'] = @resource[:cib]
-        crm('configure', 'load', 'update', tmpfile.path.to_s)
+      if @property_hash[:new] == false
+        debug('Removing order directive')
+        cmd=[ command(:pcs), 'constraint', 'remove', @resource[:name]]
+        Puppet::Provider::Pacemaker::run_pcs_command(cmd)
       end
+
+      cmd = [ command(:pcs), 'constraint', 'order' ]
+      cmd << "add"
+      rsc = @property_hash[:first]
+      if rsc.include? ':'
+        items = rsc.split[':']
+        cmd << items[1]
+        cmd << items[0]
+      else
+        cmd << rsc
+      end
+      cmd << 'then'
+      rsc = @property_hash[:second].pop
+      if rsc.include? ':'
+        cmd << items[1]
+        cmd << items[0]
+      else
+        cmd << rsc
+      end
+      cmd << "id=#{@property_hash[:name]}"
+      raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
     end
   end
 end
