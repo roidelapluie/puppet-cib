@@ -36,13 +36,18 @@ Puppet::Type.type(:cs_order).provide(:pcs, :parent => Puppet::Provider::Pacemake
       else
         second = items['then']
       end
+      if items['score']
+        score = items['score']
+      else
+        score = 'INFINITY'
+      end
 
       order_instance = {
         :name       => items['id'],
         :ensure     => :present,
         :first      => first,
         :second     => second,
-        :score      => items['score'],
+        :score      => score,
         :provider   => self.name,
         :new        => false
       }
@@ -133,6 +138,7 @@ Puppet::Type.type(:cs_order).provide(:pcs, :parent => Puppet::Provider::Pacemake
       else
         cmd << rsc
       end
+      cmd << @property_hash[:score]
       cmd << "id=#{@property_hash[:name]}"
       raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
     end

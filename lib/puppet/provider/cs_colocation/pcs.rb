@@ -137,7 +137,7 @@ Puppet::Type.type(:cs_colocation).provide(:pcs, :parent => Puppet::Provider::Pac
       else
         cmd << rsc
       end
-      cmd << @property_hash[:score].to_s
+      cmd << @property_hash[:score]
       cmd << "id=#{@property_hash[:name]}"
       raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
     end
