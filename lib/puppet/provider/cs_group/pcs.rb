@@ -4,6 +4,8 @@ require Pathname.new(__FILE__).dirname.dirname.expand_path + 'pacemaker'
 Puppet::Type.type(:cs_group).provide(:pcs, :parent => Puppet::Provider::Pacemaker) do
   desc 'Provider to add, delete, manipulate primitive groups.'
 
+  defaultfor :operatingsystem => [:fedora, :centos, :redhat]
+
   # Path to the crm binary for interacting with the cluster configuration.
   commands :pcs => '/usr/sbin/pcs'
 
@@ -14,12 +16,7 @@ Puppet::Type.type(:cs_group).provide(:pcs, :parent => Puppet::Provider::Pacemake
     instances = []
 
     cmd = [ command(:pcs), 'cluster', 'cib' ]
-    if Puppet::PUPPETVERSION.to_f < 3.4
-      raw, status = Puppet::Util::SUIDManager.run_and_capture(cmd)
-    else
-      raw = Puppet::Util::Execution.execute(cmd)
-      status = raw.exitstatus
-    end
+    raw, status = run_pcs_command(cmd)
     doc = REXML::Document.new(raw)
 
     REXML::XPath.each(doc, '//group') do |e|
@@ -39,7 +36,8 @@ Puppet::Type.type(:cs_group).provide(:pcs, :parent => Puppet::Provider::Pacemake
         :name       => group[:name],
         :ensure     => :present,
         :primitives => primitives,
-        :provider   => self.name
+        :provider   => self.name,
+        :new        => false
       }
       instances << new(group_instance)
     end
@@ -52,7 +50,8 @@ Puppet::Type.type(:cs_group).provide(:pcs, :parent => Puppet::Provider::Pacemake
     @property_hash = {
       :name       => @resource[:name],
       :ensure     => :present,
-      :primitives => @resource[:primitives]
+      :primitives => @resource[:primitives],
+      :new        => true
     }
     @property_hash[:cib] = @resource[:cib] if ! @resource[:cib].nil?
   end
@@ -60,8 +59,8 @@ Puppet::Type.type(:cs_group).provide(:pcs, :parent => Puppet::Provider::Pacemake
   # Unlike create we actually immediately delete the item but first, like primitives,
   # we need to stop the group.
   def destroy
-    debug('Revmoving group')
-    pcs('resource', 'delete', @resource[:name])
+    debug('Removing group')
+    Puppet::Provider::Pacemaker::run_pcs_command([command(:pcs), 'resource', 'ungroup', @property_hash[:name]])
     @property_hash.clear
   end
 
@@ -76,7 +75,7 @@ Puppet::Type.type(:cs_group).provide(:pcs, :parent => Puppet::Provider::Pacemake
   # resource already exists so we just update the current value in the property
   # hash and doing this marks it to be flushed.
   def primitives=(should)
-    @property_hash[:primitives] = should.sort
+    @property_hash[:primitives] = should
   end
 
   # Flush is triggered on anything that has been detected as being
@@ -85,14 +84,17 @@ Puppet::Type.type(:cs_group).provide(:pcs, :parent => Puppet::Provider::Pacemake
   # as stdin for the pcs command.
   def flush
     unless @property_hash.empty?
-      updated = 'group '
-      updated << "#{@property_hash[:name]} #{@property_hash[:primitives].join(' ')}"
-      Tempfile.open('puppet_crm_update') do |tmpfile|
-        tmpfile.write(updated)
-        tmpfile.flush
-        ENV['CIB_shadow'] = @resource[:cib]
-        crm('configure', 'load', 'update', tmpfile.path.to_s)
+
+      ENV['CIB_shadow'] = @resource[:cib]
+
+      if @property_hash[:new] == false
+        debug('Removing group')
+        Puppet::Provider::Pacemaker::run_pcs_command([command(:pcs), 'resource', 'ungroup', @property_hash[:name]])
       end
+
+      cmd = [ command(:pcs), 'resource', 'group', 'add', "#{@property_hash[:name]}" ]
+      cmd += @property_hash[:primitives]
+      raw, status = Puppet::Provider::Pacemaker::run_pcs_command(cmd)
     end
   end
 end
