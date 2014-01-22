@@ -52,9 +52,16 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
     if ! e.elements['operations'].nil?
       e.elements['operations'].each_element do |o|
         valids = o.attributes.reject do |k,v| k == 'id' end
-        hash[:operations][valids['name']] = {}
+        if ! valids['role'].nil?
+          name = valids['name']
+          name << ":"
+          name << valids['role']
+        else
+          name = valids['name']
+        end
+        hash[:operations][name] = {}
         valids.each do |k,v|
-          hash[:operations][valids['name']][k] = v if k != 'name'
+          hash[:operations][name][k] = v if k != 'name' and k != 'role'
         end
         hash[:existing_operations] = hash[:operations].dup
       end
@@ -112,7 +119,7 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
   # Unlike create we actually immediately delete the item.
   def destroy
     debug('Removing primitive')
-    pcs('resource', 'delete', @resource[:name])
+    Puppet::Provider::Pacemaker::run_pcs_command([command(:pcs), 'resource', 'delete', @property_hash[:name]])
     @property_hash.clear
   end
 
@@ -216,7 +223,15 @@ Puppet::Type.type(:cs_primitive).provide(:pcs, :parent => Puppet::Provider::Pace
       unless @property_hash[:operations].empty?
         operations = []
         @property_hash[:operations].each do |o|
-          operations += [ "op",  "#{o[0]}" ]
+          op_name = o[0]
+          operations << "op"
+          if op_name.include? ':'
+            items = op_name.split(':')
+            operations << items[0]
+            operations << "role=#{items[1]}"
+          else
+            operations << op_name
+          end
           o[1].each_pair do |k,v|
             operations << "#{k}=#{v}"
           end
