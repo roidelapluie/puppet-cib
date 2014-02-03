@@ -1,36 +1,7 @@
-Puppet Labs module for Corosync
-============================
+Puppet module for CIB
+=====================
 
-[![Build Status](https://travis-ci.org/roidelapluie/puppetlabs-corosync.png?branch=master)](https://travis-ci.org/roidelapluie/puppetlabs)
-
-Corosync is a cluster stack written as a reimplementation of all the core
-functionalities required by openais.  Meant to provide 100% correct operation
-during failures or partitionable networks.
-
-Most famous for being the cluster stack used by Pacemaker to support n-code
-clusters that can respond to node and resource level events.
-
-Basic usage
------------
-
-*To install and configure Corosync*
-
-```puppet
-class { 'corosync':
-  enable_secauth    => true,
-  authkey           => '/var/lib/puppet/ssl/certs/ca.pem',
-  bind_address      => $ipaddress,
-  multicast_address => '239.1.1.2',
-}
-```
-
-*To enable Pacemaker*
-
-```puppet
-corosync::service { 'pacemaker':
-  version => '0',
-}
-```
+*Forked from the puppet-labs corosync module*
 
 Configuring primitives
 ------------------------
@@ -108,11 +79,6 @@ cs_order { 'vip_before_service':
 }
 ```
 
-Dependencies
-------------
-
-Tested and built on Debian 6 using backports so version 1.4.2 of Corosync is validated
-to function.
 
 Notes
 -----
@@ -135,7 +101,7 @@ there are more incomplete examples spread across the [Puppet Labs Github](https:
 Contributors
 ------------
 
-  * [See Puppet Labs Github](https://github.com/puppetlabs/puppetlabs-corosync/graphs/contributors)
+  * [See Github](https://github.com/roidelapluie/puppet-cib/graphs/contributors)
 
 Copyright and License
 ---------------------
